@@ -35,3 +35,23 @@ fileserver <file_directory> <certificate_directory> <email>
 - `file_directory` is the directory of files you want to serve.
 - `certificate_directory` is the directory used to store your generated SSL certificates.
 - `email` is a contact email that Let's Encrypt can use to notify you about problems with issued certificates.
+
+## Example systemd service
+
+/etc/systemd/system/fileserver.service
+```
+[Unit]
+Description=fileserver
+
+[Service]
+ExecStart=/root/go/bin/fileserver /root/public /root/certs you@example.com
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```
+systemctl daemon-reload
+systemctl start fileserver
+systemctl status fileserver
+```
