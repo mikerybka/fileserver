@@ -6,7 +6,7 @@ Let's Encrypt is used to automatically generate SSL certificates.
 ## Install
 
 ```bash
-go install github.com/webmachine-dev/fileserver@latest
+go install github.com/mikerybka/fileserver@latest
 ```
 
 ## Usage

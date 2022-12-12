@@ -1,4 +1,4 @@
-module github.com/webmachine-dev/fileserver
+module github.com/mikerybka/fileserver
 
 go 1.19
 
