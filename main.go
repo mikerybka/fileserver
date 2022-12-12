@@ -14,8 +14,8 @@ import (
 func main() {
 	flag.Parse()
 	dir := flag.Arg(0)
-	acmeEmail := flag.Arg(1)
-	certDir := flag.Arg(2)
+	certDir := flag.Arg(1)
+	email := flag.Arg(2)
 	handler := &Handler{Dir: dir}
 	manager := autocert.Manager{
 		Prompt: autocert.AcceptTOS,
@@ -32,7 +32,7 @@ func main() {
 			}
 			return fmt.Errorf("host %q not allowed", host)
 		},
-		Email: acmeEmail,
+		Email: email,
 	}
 	listener := manager.Listener()
 	err := http.Serve(listener, handler)
