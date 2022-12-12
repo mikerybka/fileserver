@@ -1,6 +1,6 @@
 # fileserver
 
-`fileserver` is a simple linux utility that serves local files over HTTPS.
+`fileserver` is a simple CLI app that serves local files over HTTPS.
 Let's Encrypt is used to automatically generate SSL certificates.
 
 ## Install
