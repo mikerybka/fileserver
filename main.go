@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -15,8 +19,12 @@ func main() {
 	flag.Parse()
 	dir := flag.Arg(0)
 	certDir := flag.Arg(1)
-	email := flag.Arg(2)
-	handler := &Handler{Dir: dir}
+	logsDir := flag.Arg(2)
+	email := flag.Arg(3)
+	h := &handler{
+		dir:     dir,
+		logsDir: logsDir,
+	}
 	manager := autocert.Manager{
 		Prompt: autocert.AcceptTOS,
 		Cache:  autocert.DirCache(certDir),
@@ -34,8 +42,8 @@ func main() {
 		},
 		Email: email,
 	}
-	listener := manager.Listener()
-	err := http.Serve(listener, handler)
+	l := manager.Listener()
+	err := http.Serve(l, h)
 	panic(err)
 }
 
@@ -53,12 +61,56 @@ func listHosts(dir string) ([]string, error) {
 	return hosts, nil
 }
 
-type Handler struct {
-	Dir string
+type handler struct {
+	dir     string
+	logsDir string
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if err := logRequest(r, h.logsDir); err != nil {
+		panic(err)
+	}
 	host := r.Host
-	dir := filepath.Join(h.Dir, host)
+	dir := filepath.Join(h.dir, host)
 	http.FileServer(http.Dir(dir)).ServeHTTP(w, r)
+}
+
+type RequestLog struct {
+	FromIP  string              `json:"from_ip"`
+	Method  string              `json:"method"`
+	Host    string              `json:"host"`
+	Path    string              `json:"path"`
+	Query   map[string][]string `json:"query"`
+	Headers map[string][]string `json:"headers"`
+	Body    []byte              `json:"body"`
+}
+
+func logRequest(r *http.Request, dir string) error {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
+	}
+	l := RequestLog{
+		FromIP:  r.RemoteAddr,
+		Method:  r.Method,
+		Host:    r.Host,
+		Path:    r.URL.Path,
+		Query:   r.URL.Query(),
+		Headers: r.Header,
+		Body:    body,
+	}
+	b, err := json.MarshalIndent(l, "", "  ")
+	if err != nil {
+		return err
+	}
+	timestamp := time.Now().UnixNano()
+	var logFile string
+	for {
+		logFile = filepath.Join(dir, strconv.Itoa(int(timestamp)))
+		if _, err := os.Stat(logFile); os.IsNotExist(err) {
+			break
+		}
+		timestamp++
+	}
+	return os.WriteFile(logFile, b, os.ModePerm)
 }

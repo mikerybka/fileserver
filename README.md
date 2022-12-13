@@ -29,11 +29,12 @@ You can add/edit/rename/move any file or host directory without needing to reloa
 
 To start the server:
 ```bash
-fileserver <file_directory> <certificate_directory> <email>
+fileserver <file_directory> <certificate_directory> <logs_directory> <email>
 ```
 
 - `file_directory` is the directory of files you want to serve.
 - `certificate_directory` is the directory used to store your generated SSL certificates.
+- `logs_directory` is the directory used to store a log entry for each incoming request.
 - `email` is a contact email that Let's Encrypt can use to notify you about problems with issued certificates.
 
 ## Example systemd service
@@ -44,7 +45,7 @@ fileserver <file_directory> <certificate_directory> <email>
 Description=fileserver
 
 [Service]
-ExecStart=/root/go/bin/fileserver /root/public /root/certs you@example.com
+ExecStart=/root/go/bin/fileserver /root/public /root/certs /root/logs you@example.com
 
 [Install]
 WantedBy=multi-user.target
