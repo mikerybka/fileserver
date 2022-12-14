@@ -184,7 +184,12 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "POST" {
-		r.ParseForm()
+		err := r.ParseForm()
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("bad request: " + err.Error()))
+			return
+		}
 		json.NewEncoder(os.Stdout).Encode(r.Form)
 		user := r.FormValue("user")
 		if len(user) < 5 {
@@ -199,7 +204,7 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userFile := filepath.Join(a.dir, "users", user)
-		_, err := os.ReadFile(userFile)
+		_, err = os.ReadFile(userFile)
 		if err == nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte("user already exists"))
