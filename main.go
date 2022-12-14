@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -121,6 +123,8 @@ func logRequest(r *http.Request, dir string) error {
 	if err != nil {
 		panic(err)
 	}
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+
 	l := struct {
 		FromIP  string              `json:"from_ip"`
 		Method  string              `json:"method"`
