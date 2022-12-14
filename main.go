@@ -160,10 +160,49 @@ type auth struct {
 
 func (a *auth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
+	case "/signup":
+		a.signup(w, r)
 	case "/login":
 		a.login(w, r)
 	case "/logout":
 		a.logout(w, r)
+	}
+}
+
+func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`
+			<form method="POST">
+				<input type="text" name="user" placeholder="user">
+				<input type="password" name="pass" placeholder="pass">
+				<input type="submit" value="Sign up">
+			</form>
+		`))
+		return
+	}
+	if r.Method == "POST" {
+		user := r.PostFormValue("user")
+		pass := r.PostFormValue("pass")
+		userFile := filepath.Join(a.dir, "users", user)
+		_, err := os.ReadFile(userFile)
+		if err == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("user already exists"))
+			return
+		}
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("failed to hash password"))
+			return
+		}
+		err = os.WriteFile(userFile, passwordHash, os.ModePerm)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("failed to write user file"))
+			return
+		}
 	}
 }
 
