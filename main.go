@@ -92,6 +92,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := a.getUserID(r)
+	fmt.Println("userID:", userID)
 	if userID != "public" {
 		dir := filepath.Join(h.privateDir, userID, r.Host)
 		_, err := os.Stat(filepath.Join(dir, r.URL.Path))
