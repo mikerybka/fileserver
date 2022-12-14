@@ -184,6 +184,8 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "POST" {
+		r.ParseForm()
+		json.NewEncoder(os.Stdout).Encode(r.Form)
 		user := r.FormValue("user")
 		if len(user) < 5 {
 			w.WriteHeader(http.StatusBadRequest)
