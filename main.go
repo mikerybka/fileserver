@@ -108,12 +108,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (a *auth) getUserID(r *http.Request) string {
 	cookie, err := r.Cookie("auth")
 	if err != nil {
+		fmt.Println("no cookie")
 		return "public"
 	}
 	sessionToken := cookie.Value
 	sessionFile := filepath.Join(a.dir, "sessions", sessionToken)
 	userID, err := os.ReadFile(sessionFile)
 	if err != nil {
+		fmt.Println("no file")
 		return "public"
 	}
 	return string(userID)
