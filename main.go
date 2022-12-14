@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,26 +12,32 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
 	flag.Parse()
-	dir := flag.Arg(0)
-	certDir := flag.Arg(1)
-	logsDir := flag.Arg(2)
-	email := flag.Arg(3)
+	publicDir := flag.Arg(0)
+	privateDir := flag.Arg(1)
+	certDir := flag.Arg(2)
+	logsDir := flag.Arg(3)
+	authDir := flag.Arg(4)
+	email := flag.Arg(5)
 	h := &handler{
-		dir:     dir,
-		logsDir: logsDir,
+		publicDir:  publicDir,
+		privateDir: privateDir,
+		logsDir:    logsDir,
+		authDir:    authDir,
 	}
 	manager := autocert.Manager{
 		Prompt: autocert.AcceptTOS,
 		Cache:  autocert.DirCache(certDir),
 		HostPolicy: func(_ context.Context, host string) error {
-			hosts, err := listHosts(dir)
+			hosts, err := listHosts(publicDir)
 			if err != nil {
 				return err
 			}
@@ -62,27 +70,50 @@ func listHosts(dir string) ([]string, error) {
 }
 
 type handler struct {
-	dir     string
-	logsDir string
+	publicDir  string
+	privateDir string
+	logsDir    string
+	authDir    string
+}
+
+func (h *handler) auth() *auth {
+	return &auth{dir: h.authDir}
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := logRequest(r, h.logsDir); err != nil {
-		panic(err)
+	logRequest(r, h.logsDir)
+	a := h.auth()
+
+	if strings.HasPrefix(r.URL.Path, "/auth") {
+		http.StripPrefix("/auth", a).ServeHTTP(w, r)
+		return
 	}
-	host := r.Host
-	dir := filepath.Join(h.dir, host)
+
+	userID := a.getUserID(r)
+	if userID != "public" {
+		dir := filepath.Join(h.privateDir, userID, r.Host)
+		_, err := os.Stat(filepath.Join(dir, r.URL.Path))
+		if err == nil {
+			http.FileServer(http.Dir(dir)).ServeHTTP(w, r)
+			return
+		}
+	}
+	dir := filepath.Join(h.publicDir, r.Host)
 	http.FileServer(http.Dir(dir)).ServeHTTP(w, r)
 }
 
-type RequestLog struct {
-	FromIP  string              `json:"from_ip"`
-	Method  string              `json:"method"`
-	Host    string              `json:"host"`
-	Path    string              `json:"path"`
-	Query   map[string][]string `json:"query"`
-	Headers map[string][]string `json:"headers"`
-	Body    []byte              `json:"body"`
+func (a *auth) getUserID(r *http.Request) string {
+	cookie, err := r.Cookie("auth")
+	if err != nil {
+		return "public"
+	}
+	sessionToken := cookie.Value
+	sessionFile := filepath.Join(a.dir, "sessions", sessionToken)
+	userID, err := os.ReadFile(sessionFile)
+	if err != nil {
+		return "public"
+	}
+	return string(userID)
 }
 
 func logRequest(r *http.Request, dir string) error {
@@ -90,7 +121,15 @@ func logRequest(r *http.Request, dir string) error {
 	if err != nil {
 		panic(err)
 	}
-	l := RequestLog{
+	l := struct {
+		FromIP  string              `json:"from_ip"`
+		Method  string              `json:"method"`
+		Host    string              `json:"host"`
+		Path    string              `json:"path"`
+		Query   map[string][]string `json:"query"`
+		Headers map[string][]string `json:"headers"`
+		Body    []byte              `json:"body"`
+	}{
 		FromIP:  r.RemoteAddr,
 		Method:  r.Method,
 		Host:    r.Host,
@@ -113,4 +152,76 @@ func logRequest(r *http.Request, dir string) error {
 		timestamp++
 	}
 	return os.WriteFile(logFile, b, os.ModePerm)
+}
+
+type auth struct {
+	dir string
+}
+
+func (a *auth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case "/login":
+		a.login(w, r)
+	case "/logout":
+		a.logout(w, r)
+	}
+}
+
+func (a *auth) login(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`
+			<form method="POST">
+				<input type="text" name="user" placeholder="user">
+				<input type="password" name="pass" placeholder="pass">
+				<input type="submit" value="Login">
+			</form>
+		`))
+		return
+	}
+	if r.Method == "POST" {
+		user := r.PostFormValue("user")
+		pass := r.PostFormValue("pass")
+		userFile := filepath.Join(a.dir, "users", user)
+		passwordHash, err := os.ReadFile(userFile)
+		if err != nil {
+			if os.IsNotExist(err) {
+				w.WriteHeader(http.StatusUnauthorized)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+			return
+		}
+		err = bcrypt.CompareHashAndPassword(passwordHash, []byte(pass))
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		sessionToken := generateSessionToken()
+		sessionFile := filepath.Join(a.dir, "sessions", sessionToken)
+		err = os.WriteFile(sessionFile, []byte(user), os.ModePerm)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     "auth",
+			Value:    sessionToken,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
+		})
+		w.Write([]byte("Success!"))
+	}
+}
+
+func generateSessionToken() string {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
+
+func (a *auth) logout(w http.ResponseWriter, r *http.Request) {
 }
