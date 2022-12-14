@@ -188,7 +188,6 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "POST" {
-		r.ParseForm()
 		user := r.FormValue("user")
 		if len(user) < 5 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -217,9 +216,10 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 		err = os.WriteFile(userFile, passwordHash, os.ModePerm)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("failed to write user file: " + err.Error()))
+			_, _ = w.Write([]byte("failed to write user file"))
 			return
 		}
+		w.Write([]byte("Success!"))
 	}
 }
 
@@ -236,8 +236,8 @@ func (a *auth) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "POST" {
-		user := r.PostFormValue("user")
-		pass := r.PostFormValue("pass")
+		user := r.FormValue("user")
+		pass := r.FormValue("pass")
 		userFile := filepath.Join(a.dir, "users", user)
 		passwordHash, err := os.ReadFile(userFile)
 		if err != nil {
