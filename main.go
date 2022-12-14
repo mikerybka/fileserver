@@ -175,7 +175,7 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(`
-			<form method="POST">
+			<form method="POST" action="/auth/signup">
 				<input type="text" name="user" placeholder="user">
 				<input type="password" name="pass" placeholder="pass">
 				<input type="submit" value="Sign up">
