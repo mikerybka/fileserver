@@ -202,7 +202,7 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 		err = os.WriteFile(userFile, passwordHash, os.ModePerm)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("failed to write user file"))
+			_, _ = w.Write([]byte("failed to write user file: " + err.Error()))
 			return
 		}
 	}
