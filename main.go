@@ -166,6 +166,8 @@ func (a *auth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.login(w, r)
 	case "/logout":
 		a.logout(w, r)
+	default:
+		http.NotFound(w, r)
 	}
 }
 
