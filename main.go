@@ -185,7 +185,17 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == "POST" {
 		user := r.FormValue("user")
+		if len(user) < 5 {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("username must be at least 5 characters"))
+			return
+		}
 		pass := r.FormValue("pass")
+		if len(pass) < 8 {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("password must be at least 8 characters"))
+			return
+		}
 		userFile := filepath.Join(a.dir, "users", user)
 		_, err := os.ReadFile(userFile)
 		if err == nil {
