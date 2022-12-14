@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
@@ -72,7 +73,22 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	host := r.Host
 	dir := filepath.Join(h.dir, host)
-	http.FileServer(http.Dir(dir)).ServeHTTP(w, r)
+	if r.Method == http.MethodGet {
+		http.FileServer(http.Dir(dir)).ServeHTTP(w, r)
+	} else {
+		writeSuccess(w, r)
+	}
+}
+
+func writeSuccess(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.Header.Get("Accept"), "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, `{"ok": true}`)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "Success!")
+	}
 }
 
 type RequestLog struct {
