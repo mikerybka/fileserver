@@ -190,7 +190,7 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("bad request: " + err.Error()))
 			return
 		}
-		json.NewEncoder(os.Stdout).Encode(r.Form)
+		fmt.Println(r.Form.Encode())
 		user := r.FormValue("user")
 		if len(user) < 5 {
 			w.WriteHeader(http.StatusBadRequest)
