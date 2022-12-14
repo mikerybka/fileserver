@@ -184,8 +184,8 @@ func (a *auth) signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "POST" {
-		user := r.PostFormValue("user")
-		pass := r.PostFormValue("pass")
+		user := r.FormValue("user")
+		pass := r.FormValue("pass")
 		userFile := filepath.Join(a.dir, "users", user)
 		_, err := os.ReadFile(userFile)
 		if err == nil {
