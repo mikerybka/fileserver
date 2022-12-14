@@ -264,10 +264,8 @@ func (a *auth) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.SetCookie(w, &http.Cookie{
-			Name:     "auth",
-			Value:    sessionToken,
-			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
+			Name:  "auth",
+			Value: sessionToken,
 		})
 		w.Write([]byte("Success!"))
 	}
